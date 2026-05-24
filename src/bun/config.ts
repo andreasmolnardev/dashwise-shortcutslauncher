@@ -12,18 +12,30 @@ export type DashwiseConfig = {
   createdAt: string;
 };
 
+function ensureConfigDir(): void {
+  if (!existsSync(CONFIG_DIR)) {
+    mkdirSync(CONFIG_DIR, { recursive: true });
+  }
+}
+
+function writeConfigFile(config: DashwiseConfig): void {
+  ensureConfigDir();
+  writeFileSync(TOKEN_FILE, JSON.stringify(config, null, 2), "utf8");
+}
+
 export function ensureConfig(): DashwiseConfig {
   if (process.env.DASHWISE_TOKEN) {
-    return {
+    const config: DashwiseConfig = {
       token: process.env.DASHWISE_TOKEN,
       port: parseInt(process.env.DASHWISE_PORT || "47821"),
       createdAt: new Date().toISOString(),
     };
+
+    writeConfigFile(config);
+    return config;
   }
 
-  if (!existsSync(CONFIG_DIR)) {
-    mkdirSync(CONFIG_DIR, { recursive: true });
-  }
+  ensureConfigDir();
 
   if (existsSync(TOKEN_FILE)) {
     try {
@@ -43,7 +55,7 @@ export function ensureConfig(): DashwiseConfig {
     createdAt: new Date().toISOString(),
   };
 
-  writeFileSync(TOKEN_FILE, JSON.stringify(config, null, 2), "utf8");
+  writeConfigFile(config);
 
   console.log("\n╔═══════════════════════════════════════════════════╗");
   console.log("║          DASHWISE — First-time Setup               ║");
