@@ -13,6 +13,14 @@ export type DashwiseConfig = {
 };
 
 export function ensureConfig(): DashwiseConfig {
+  if (process.env.DASHWISE_TOKEN) {
+    return {
+      token: process.env.DASHWISE_TOKEN,
+      port: parseInt(process.env.DASHWISE_PORT || "47821"),
+      createdAt: new Date().toISOString(),
+    };
+  }
+
   if (!existsSync(CONFIG_DIR)) {
     mkdirSync(CONFIG_DIR, { recursive: true });
   }

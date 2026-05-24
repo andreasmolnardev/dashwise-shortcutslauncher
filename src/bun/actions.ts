@@ -1,10 +1,34 @@
 import { $ } from "bun";
 import type { ActionResult, App, MediaAction } from "../shared/types";
 
+const isWindows = process.platform === "win32";
+
+// ─── Windows Helpers ─────────────────────────────────────────────────────────
+
+async function runPowerShell(command: string): Promise<string> {
+  return await $`powershell -Command "${command}"`.quiet().text();
+}
+
 // ─── Media Controls ──────────────────────────────────────────────────────────
-// Uses AppleScript to send media key events via osascript
 
 export async function mediaControl(action: MediaAction): Promise<ActionResult> {
+  if (isWindows) {
+    const vkeyCode = {
+      play: "PLAY_PAUSE",
+      pause: "PLAY_PAUSE",
+      stop: "MEDIA_STOP",
+      next: "MEDIA_NEXT",
+      previous: "MEDIA_PREV",
+    }[action];
+
+    try {
+      await runPowerShell(`Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait('{${vkeyCode}}')`);
+      return { success: true, message: `Media ${action} sent (Windows)` };
+    } catch (err) {
+      return { success: false, message: `Media control failed: ${err}` };
+    }
+  }
+
   const scripts: Record<MediaAction, string> = {
     play: `tell application "System Events" to key code 49`,
     pause: `tell application "System Events" to key code 49`,
@@ -79,6 +103,16 @@ export async function mediaControl(action: MediaAction): Promise<ActionResult> {
 // ─── Brightness ───────────────────────────────────────────────────────────────
 
 export async function getBrightness(): Promise<{ level: number }> {
+  if (isWindows) {
+    try {
+      const result = await runPowerShell("(Get-WmiObject -Namespace root/WMI -Class WmiMonitorBrightness).CurrentBrightness");
+      const b = parseInt(result.trim());
+      return { level: isNaN(b) ? 0.5 : b / 100 };
+    } catch {
+      return { level: 0.5 };
+    }
+  }
+
   try {
     const result = await $`osascript -e "tell application \\"System Preferences\\" to get brightness of first display"`.quiet().text();
     const level = parseFloat(result.trim());
@@ -96,6 +130,23 @@ export async function getBrightness(): Promise<{ level: number }> {
 }
 
 export async function setBrightness(delta: number): Promise<ActionResult> {
+  if (isWindows) {
+    try {
+      const current = (await getBrightness()).level;
+      let next = delta;
+      if (Math.abs(delta) <= 1.0) {
+        next = Math.max(0, Math.min(1, current + delta));
+      } else {
+        next = Math.max(0, Math.min(1, delta / 100));
+      }
+      const winVal = Math.round(next * 100);
+      await runPowerShell(`(Get-WmiObject -Namespace root/WMI -Class WmiMonitorBrightnessMethods).WmiSetBrightness(0, ${winVal})`);
+      return { success: true, message: `Brightness set to ${winVal}% (Windows)` };
+    } catch (err) {
+      return { success: false, message: `Brightness control failed: ${err}` };
+    }
+  }
+
   // delta is +1 or -1 (step) or a raw value if |delta| > 1
   const isStep = Math.abs(delta) === 1;
 
@@ -137,6 +188,17 @@ export async function setBrightness(delta: number): Promise<ActionResult> {
 // ─── Do Not Disturb ──────────────────────────────────────────────────────────
 
 export async function setDoNotDisturb(enabled: boolean): Promise<ActionResult> {
+  if (isWindows) {
+    try {
+      // Best-effort registry toggle for Focus Assist (Windows 10/11)
+      const val = enabled ? 2 : 0; // 0=Off, 1=Priority, 2=Alarms
+      await runPowerShell(`Set-ItemProperty -Path "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Notifications\\Settings" -Name "NOC_GLOBAL_SETTING_TOASTS_ENABLED" -Value ${enabled ? 0 : 1}`);
+      return { success: true, message: `Focus Assist ${enabled ? "enabled" : "disabled"} (Windows)` };
+    } catch (err) {
+      return { success: false, message: "Focus Assist toggle failed" };
+    }
+  }
+
   // macOS 12+ uses Focus modes, older uses DND toggle
   const script = enabled
     ? `
@@ -190,6 +252,26 @@ const APP_DIRS = [
 ];
 
 export async function listApps(): Promise<App[]> {
+  if (isWindows) {
+    try {
+      const script = `
+        $Shell = New-Object -ComObject Shell.Application
+        $Folder = $Shell.NameSpace("shell:AppsFolder")
+        $Folder.Items() | Select-Object Name, Path | ConvertTo-Json
+      `;
+      const result = await runPowerShell(script);
+      const items = JSON.parse(result);
+      // Handle both single object and array output from PowerShell JSON
+      const list = Array.isArray(items) ? items : [items];
+      return list.map((i: any) => ({ 
+        name: i.Name, 
+        path: i.Path || i.Name 
+      })).filter(a => a.name);
+    } catch {
+      return [];
+    }
+  }
+
   const apps: App[] = [];
   const seen = new Set<string>();
 
@@ -226,8 +308,12 @@ export async function searchApps(query: string): Promise<App[]> {
 
 export async function launchApp(path: string): Promise<ActionResult> {
   try {
-    await $`open ${path}`.quiet();
-    return { success: true, message: `Launched ${path.split("/").pop()?.replace(".app", "")}` };
+    if (isWindows) {
+      await $`powershell -Command "Start-Process '${path}'"`.quiet();
+    } else {
+      await $`open ${path}`.quiet();
+    }
+    return { success: true, message: `Launched ${path.split(isWindows ? "\\" : "/").pop()?.replace(".app", "")}` };
   } catch (e) {
     return {
       success: false,
@@ -236,40 +322,3 @@ export async function launchApp(path: string): Promise<ActionResult> {
   }
 }
 
-// ─── Raycast ─────────────────────────────────────────────────────────────────
-
-const RAYCAST_PATH = "/Applications/Raycast.app";
-
-export async function isRaycastInstalled(): Promise<boolean> {
-  try {
-    await $`test -d ${RAYCAST_PATH}`.quiet();
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-export async function launchRaycast(query?: string): Promise<ActionResult> {
-  const installed = await isRaycastInstalled();
-  if (!installed) {
-    return { success: false, message: "Raycast is not installed" };
-  }
-
-  try {
-    if (query) {
-      // Open Raycast with a prefilled search query via URL scheme
-      const encoded = encodeURIComponent(query);
-      await $`open "raycast://extensions/search?query=${encoded}"`.quiet().nothrow();
-      // Fallback: just open Raycast
-      await $`open ${RAYCAST_PATH}`.quiet();
-    } else {
-      await $`open ${RAYCAST_PATH}`.quiet();
-    }
-    return { success: true, message: "Raycast launched" };
-  } catch (e) {
-    return {
-      success: false,
-      message: `Failed to launch Raycast: ${e instanceof Error ? e.message : String(e)}`,
-    };
-  }
-}

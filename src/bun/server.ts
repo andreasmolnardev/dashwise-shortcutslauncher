@@ -12,8 +12,6 @@ import {
   listApps,
   searchApps,
   launchApp,
-  isRaycastInstalled,
-  launchRaycast,
 } from "./actions";
 
 // ─── Shortcut Database ────────────────────────────────────────────────────────

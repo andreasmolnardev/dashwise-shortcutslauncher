@@ -1,25 +1,36 @@
-# ▣ Macropad
+# ▣ Dashwise Launcher
 
-A desktop automation hub built with [Electrobun](https://electrobun.dev) — exposes macOS system actions over a local authenticated REST API.
+> [!Warning]
+> This is a vibe coded MVP. I plan to manually enhance it in the future. 
+
+A lightweight macOS automation hub built with [Bun](https://bun.sh) — exposes macOS system actions over a local authenticated REST API via a flexible shortcut system.
 
 ## Features
 
-- **Media controls** — play, pause, stop, next track, previous track
-- **Display brightness** — increase/decrease via system key codes or `brightness` CLI
-- **Do Not Disturb** — enable/disable focus mode
-- **App launcher** — list all installed `.app` bundles and launch any by name or path
-- **App search** — fuzzy-search installed applications
-- **Raycast integration** — detect if Raycast is installed and launch it (with optional search query)
-- **System tray** — always accessible from the menu bar
-- **Local REST API** — every action available over HTTP on `localhost:47821`
-- **Bearer token auth** — token generated on first install, stored at `~/.macropad/config.json`
+- **Shortcut system** — Create and execute custom actions (media, brightness, apps, system) via unique IDs
+- **Persistent storage** — Shortcuts are stored in a local SQLite database at `~/.dashwise/shortcuts.sqlite`
+- **Media controls** — Play, pause, stop, next track, previous track (via AppleScript)
+- **Display brightness** — Adjust levels via system key codes or `brightness` CLI
+- **Do Not Disturb** — Toggle macOS focus mode
+- **App launcher** — Launch any installed `.app` bundle by name or path
+- **Local REST API** — High-performance Hono-based server on `localhost:47821`
+- **Bearer token auth** — Token generated on first install, stored at `~/.dashwise/config.json`
 
 ## Requirements
 
-- macOS 14+
+- macOS 14+ or Windows 10+
 - [Bun](https://bun.sh) installed
-- (Optional) [`brightness`](https://github.com/nriley/brightness) for absolute brightness control: `brew install brightness`
-- (Optional) [Raycast](https://raycast.com) installed in `/Applications`
+- (Optional) [`brightness`](https://github.com/nriley/brightness) for absolute brightness control (macOS): `brew install brightness`
+
+## Configuration
+
+You can provide the authentication token and port via environment variables:
+
+```bash
+DASHWISE_TOKEN="your-secure-token" DASHWISE_PORT=47821 bun start
+```
+
+If not provided, Dashwise will use the values from `~/.dashwise/config.json`.
 
 ## Getting Started
 
@@ -27,11 +38,11 @@ A desktop automation hub built with [Electrobun](https://electrobun.dev) — exp
 # Install dependencies (generates your bearer token on first run)
 bun install
 
-# Start in development mode
+# Start the API server
 bun start
 
-# Build for distribution
-bun run build
+# Development mode (auto-reload)
+bun run dev
 ```
 
 ### First-time setup
@@ -39,10 +50,10 @@ bun run build
 On `bun install`, a script generates a unique bearer token and saves it to:
 
 ```
-~/.macropad/config.json
+~/.dashwise/config.json
 ```
 
-The token is printed to the terminal. You can also view it in the **API** tab of the app UI.
+The token is printed to the terminal on creation.
 
 ## REST API
 
@@ -50,7 +61,7 @@ The app exposes a local HTTP API on port `47821`.
 
 ### Authentication
 
-All endpoints (except `GET /health`) require:
+All `/api/*` endpoints require:
 
 ```
 Authorization: Bearer <your-token>
@@ -61,16 +72,9 @@ Authorization: Bearer <your-token>
 | Method | Path | Description |
 |--------|------|-------------|
 | `GET` | `/health` | Health check (no auth required) |
-| `GET` | `/api/info` | API info |
-| `GET` | `/api/apps` | List all installed apps |
-| `GET` | `/api/apps/search?q=<query>` | Search apps by name |
-| `POST` | `/api/apps/launch` | Launch an app by `path` or `name` |
-| `POST` | `/api/media` | Media control — `{action: "play"\|"pause"\|"stop"\|"next"\|"previous"}` |
-| `GET` | `/api/brightness` | Get current brightness level |
-| `POST` | `/api/brightness` | Set brightness — `{delta: ±1}` or `{delta: 0.0-1.0}` absolute |
-| `POST` | `/api/dnd` | Toggle Do Not Disturb — `{enabled: boolean}` |
-| `GET` | `/api/raycast` | Check if Raycast is installed |
-| `POST` | `/api/raycast` | Launch Raycast — `{query?: string}` |
+| `GET` | `/openapi.json` | Full OpenAPI specification |
+| `GET` | `/api/shortcuts` | List all available shortcuts and their IDs |
+| `POST` | `/api/shortcuts/run?id=<id>` | Execute a shortcut by its unique ID |
 
 ### Examples
 
@@ -78,66 +82,31 @@ Authorization: Bearer <your-token>
 TOKEN="your-token-here"
 BASE="http://localhost:47821"
 
-# Play/pause
-curl -X POST $BASE/api/media \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"action":"play"}'
-
-# List all apps
-curl $BASE/api/apps \
+# Get all shortcuts
+curl $BASE/api/shortcuts \
   -H "Authorization: Bearer $TOKEN"
 
-# Launch Safari
-curl -X POST $BASE/api/apps/launch \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"name":"Safari"}'
-
-# Increase brightness (one step)
-curl -X POST $BASE/api/brightness \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"delta":1}'
-
-# Set brightness to 75%
-curl -X POST $BASE/api/brightness \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"delta":0.75}'
-
-# Enable Do Not Disturb
-curl -X POST $BASE/api/dnd \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"enabled":true}'
-
-# Open Raycast with a query
-curl -X POST $BASE/api/raycast \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"query":"clipboard history"}'
+# Execute a shortcut (e.g., Play/Pause)
+# Find the ID from the /api/shortcuts response
+curl -X POST "$BASE/api/shortcuts/run?id=ID_HERE" \
+  -H "Authorization: Bearer $TOKEN"
 ```
 
 ## Project Structure
 
 ```
-macropad/
+dashwise-shortcuts/
 ├── src/
 │   ├── bun/
-│   │   ├── index.ts        # Main process — tray, window, RPC
-│   │   ├── actions.ts      # All system actions (media, brightness, DND, apps, Raycast)
-│   │   ├── server.ts       # Bun HTTP server — REST API
-│   │   └── config.ts       # Token generation & config management
-│   ├── mainview/
-│   │   ├── index.html      # UI shell
-│   │   ├── index.css       # Styles
-│   │   └── index.ts        # Frontend logic & RPC calls
+│   │   ├── index.ts        # Entry point — starts the server
+│   │   ├── actions.ts      # System action logic (AppleScript, CLI)
+│   │   ├── server.ts       # Hono API server & SQLite integration
+│   │   └── config.ts       # Token & port management
 │   └── shared/
-│       └── types.ts        # Shared RPC type definitions
+│       └── types.ts        # Shared type definitions
 ├── scripts/
 │   └── generate-token.js   # postinstall — generates bearer token
-├── electrobun.config.ts    # Electrobun build config
+├── openapi.json            # API documentation
 ├── package.json
 └── tsconfig.json
 ```
