@@ -1,0 +1,74 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Dashwise Launcher API",
+    "version": "1.0.0",
+    "description": "API for controlling Dashwise Launcher functions like app launching, media control, brightness, and DND."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:{port}",
+      "variables": {
+        "port": {
+          "default": "47821"
+        }
+      }
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Health check",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "API status and documentation overview"
+          }
+        }
+      }
+    },
+    "/api/shortcuts": {
+      "get": {
+        "summary": "List all shortcuts",
+        "responses": {
+          "200": {
+            "description": "List of available shortcuts with IDs and types"
+          }
+        }
+      }
+    },
+    "/api/shortcuts/run": {
+      "post": {
+        "summary": "Run a shortcut by ID",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": { "description": "Shortcut executed successfully" },
+          "400": { "description": "ID parameter missing" },
+          "404": { "description": "Shortcut not found" }
+        }
+      }
+    }
+  }
+}

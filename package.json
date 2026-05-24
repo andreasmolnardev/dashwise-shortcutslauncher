@@ -1,0 +1,13 @@
+{
+  "name": "dashwise-launcher",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "bun run src/bun/index.ts",
+    "dev": "bun --watch src/bun/index.ts",
+    "postinstall": "node scripts/generate-token.js"
+  },
+  "dependencies": {
+    "hono": "^4.12.22"
+  }
+}

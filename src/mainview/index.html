@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Macropad</title>
+  <link rel="stylesheet" href="index.css" />
+</head>
+<body>
+  <div id="titlebar" class="titlebar" data-drag-region></div>
+
+  <div class="layout">
+    <!-- Sidebar -->
+    <nav class="sidebar">
+      <div class="sidebar-logo">
+        <span class="logo-mark">▣</span>
+        <span class="logo-text">macropad</span>
+      </div>
+
+      <ul class="nav-links">
+        <li class="nav-item active" data-tab="dashboard">
+          <span class="nav-icon">◈</span>
+          <span>Dashboard</span>
+        </li>
+        <li class="nav-item" data-tab="apps">
+          <span class="nav-icon">⊞</span>
+          <span>Apps</span>
+        </li>
+        <li class="nav-item" data-tab="media">
+          <span class="nav-icon">◉</span>
+          <span>Media</span>
+        </li>
+        <li class="nav-item" data-tab="system">
+          <span class="nav-icon">◫</span>
+          <span>System</span>
+        </li>
+        <li class="nav-item" data-tab="api">
+          <span class="nav-icon">⊡</span>
+          <span>API</span>
+        </li>
+      </ul>
+
+      <div class="sidebar-footer">
+        <div class="status-dot" id="status-dot"></div>
+        <span id="status-text" class="status-label">Running</span>
+      </div>
+    </nav>
+
+    <!-- Main content -->
+    <main class="content">
+
+      <!-- ── Dashboard ── -->
+      <section class="tab-panel active" id="tab-dashboard">
+        <header class="panel-header">
+          <h1>Dashboard</h1>
+          <p class="subtitle">Quick actions at your fingertips</p>
+        </header>
+
+        <div class="quick-grid">
+          <button class="action-card" id="btn-play">
+            <span class="card-icon">⏯</span>
+            <span class="card-label">Play / Pause</span>
+          </button>
+          <button class="action-card" id="btn-prev">
+            <span class="card-icon">⏮</span>
+            <span class="card-label">Previous</span>
+          </button>
+          <button class="action-card" id="btn-next">
+            <span class="card-icon">⏭</span>
+            <span class="card-label">Next Track</span>
+          </button>
+          <button class="action-card" id="btn-bright-up">
+            <span class="card-icon">🔆</span>
+            <span class="card-label">Brighter</span>
+          </button>
+          <button class="action-card" id="btn-bright-down">
+            <span class="card-icon">🔅</span>
+            <span class="card-label">Dimmer</span>
+          </button>
+          <button class="action-card toggle-card" id="btn-dnd">
+            <span class="card-icon">🔕</span>
+            <span class="card-label">Do Not Disturb</span>
+          </button>
+          <button class="action-card raycast-card" id="btn-raycast">
+            <span class="card-icon">✦</span>
+            <span class="card-label">Raycast</span>
+          </button>
+        </div>
+
+        <div class="toast-area" id="toast-area"></div>
+      </section>
+
+      <!-- ── Apps ── -->
+      <section class="tab-panel" id="tab-apps">
+        <header class="panel-header">
+          <h1>Applications</h1>
+          <p class="subtitle">Installed apps on this Mac</p>
+        </header>
+
+        <div class="search-row">
+          <input
+            type="text"
+            id="app-search"
+            class="search-input"
+            placeholder="Search apps…"
+          />
+          <button class="btn-refresh" id="btn-refresh-apps">↺</button>
+        </div>
+
+        <div class="app-grid" id="app-grid">
+          <div class="loading-state">Loading applications…</div>
+        </div>
+      </section>
+
+      <!-- ── Media ── -->
+      <section class="tab-panel" id="tab-media">
+        <header class="panel-header">
+          <h1>Media Controls</h1>
+          <p class="subtitle">Control music & audio playback</p>
+        </header>
+
+        <div class="media-player">
+          <div class="media-controls">
+            <button class="media-btn" id="m-stop">■</button>
+            <button class="media-btn" id="m-prev">⏮</button>
+            <button class="media-btn large" id="m-play">⏯</button>
+            <button class="media-btn" id="m-next">⏭</button>
+          </div>
+          <p class="media-note">Controls the active media player (Music, Spotify, etc.)</p>
+        </div>
+      </section>
+
+      <!-- ── System ── -->
+      <section class="tab-panel" id="tab-system">
+        <header class="panel-header">
+          <h1>System Controls</h1>
+          <p class="subtitle">Display & focus management</p>
+        </header>
+
+        <div class="system-controls">
+          <div class="control-group">
+            <label class="control-label">Display Brightness</label>
+            <div class="brightness-row">
+              <button class="sys-btn" id="s-bright-down">🔅 Decrease</button>
+              <div class="brightness-bar">
+                <div class="brightness-fill" id="brightness-fill"></div>
+              </div>
+              <button class="sys-btn" id="s-bright-up">🔆 Increase</button>
+            </div>
+          </div>
+
+          <div class="control-group">
+            <label class="control-label">Focus Mode</label>
+            <div class="toggle-row">
+              <span class="toggle-desc">Do Not Disturb — mute notifications</span>
+              <button class="toggle-switch" id="dnd-toggle" data-state="off">
+                <span class="toggle-knob"></span>
+              </button>
+            </div>
+          </div>
+
+          <div class="control-group">
+            <label class="control-label">Raycast</label>
+            <div class="raycast-row">
+              <span id="raycast-status" class="raycast-status">Checking…</span>
+              <button class="sys-btn" id="s-raycast">Open Raycast</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── API ── -->
+      <section class="tab-panel" id="tab-api">
+        <header class="panel-header">
+          <h1>REST API</h1>
+          <p class="subtitle">Local HTTP API — control Macropad from anywhere</p>
+        </header>
+
+        <div class="api-info">
+          <div class="api-block">
+            <span class="api-key-label">Base URL</span>
+            <code class="api-value" id="api-url">http://localhost:47821</code>
+          </div>
+          <div class="api-block">
+            <span class="api-key-label">Bearer Token</span>
+            <div class="token-row">
+              <code class="api-value token-value" id="api-token">••••••••••••••••</code>
+              <button class="btn-reveal" id="btn-reveal">Show</button>
+              <button class="btn-copy" id="btn-copy">Copy</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="endpoint-list">
+          <h2 class="endpoints-title">Endpoints</h2>
+          <div class="endpoint-table">
+            <div class="endpoint-row"><span class="method get">GET</span><code>/health</code><span class="desc">Health check (no auth)</span></div>
+            <div class="endpoint-row"><span class="method get">GET</span><code>/api/apps</code><span class="desc">List all installed apps</span></div>
+            <div class="endpoint-row"><span class="method get">GET</span><code>/api/apps/search?q=</code><span class="desc">Search apps by name</span></div>
+            <div class="endpoint-row"><span class="method post">POST</span><code>/api/apps/launch</code><span class="desc">Launch app — body: {path} or {name}</span></div>
+            <div class="endpoint-row"><span class="method post">POST</span><code>/api/media</code><span class="desc">body: {action: play|pause|stop|next|previous}</span></div>
+            <div class="endpoint-row"><span class="method get">GET</span><code>/api/brightness</code><span class="desc">Get current brightness level</span></div>
+            <div class="endpoint-row"><span class="method post">POST</span><code>/api/brightness</code><span class="desc">body: {delta: ±1 step or 0.0–1.0 absolute}</span></div>
+            <div class="endpoint-row"><span class="method post">POST</span><code>/api/dnd</code><span class="desc">body: {enabled: boolean}</span></div>
+            <div class="endpoint-row"><span class="method get">GET</span><code>/api/raycast</code><span class="desc">Check if Raycast is installed</span></div>
+            <div class="endpoint-row"><span class="method post">POST</span><code>/api/raycast</code><span class="desc">Launch Raycast — body: {query?: string}</span></div>
+          </div>
+
+          <div class="curl-example">
+            <h3>Example</h3>
+            <pre id="curl-example"></pre>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script src="index.ts" type="module"></script>
+</body>
+</html>
