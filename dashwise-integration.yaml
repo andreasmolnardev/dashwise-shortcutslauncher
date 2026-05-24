@@ -1,0 +1,83 @@
+details:
+  name: "Dashwise Launcher"
+  description: "Control Dashwise Launcher functions like app launching, media control, brightness, and DND."
+  author: "Dashwise"
+  version: "1.0.0"
+  icon: "/icons/png/dashwise.png"
+  categories:
+    - Launcher
+    - Automation
+
+# ---------------------------------------------------------
+# Configuration
+# ---------------------------------------------------------
+configuration:
+  environment_variables:
+    URL:
+      required: false
+      default: "http://localhost:47821"
+      description: "Base URL of the Dashwise Launcher API"
+    API_KEY:
+      required: true
+      user_hidden: true
+      edit: "overwrite-only"
+      description: "Bearer token for authenticating with the Launcher API"
+
+  endpoints:
+    fetch-shortcuts:
+      method: GET
+      url: "${URL}/api/shortcuts"
+      auth: "Bearer ${API_KEY}"
+      response:
+        type: json
+        data_path: "shortcuts"
+      response_mapping:
+        shortcuts_list:
+          iterate: "shortcuts"
+          mappingProperties:
+            id: "id"
+            name: "name"
+            type: "type"
+
+  widgets:
+    - name: "Launcher Shortcuts"
+      key: "launcher-shortcuts"
+      template: "vertical-list"
+      depends_on:
+        - "endpoints.fetch-shortcuts"
+      hide_if_empty: true
+      data:
+        source: "endpoints.fetch-shortcuts.mappedResponse.shortcuts_list"
+        input:
+          URL: "${URL}"
+          API_KEY: "${API_KEY}"
+      properties:
+        header:
+          title: "Launcher Shortcuts"
+          icon: "integrations.dashwise-launcher.details.icon"
+        items:
+          iterate_over: "endpoints.fetch-shortcuts.mappedResponse.shortcuts_list"
+          prototype:
+            title: "${name}"
+            subtitle: "${type}"
+            titleAction: "post:${URL}/api/shortcuts/run?id=${id}"
+
+# ---------------------------------------------------------
+# Shortcuts
+# Populates global search with launcher shortcuts.
+# Each result triggers a POST to run the shortcut via the server proxy.
+# ---------------------------------------------------------
+shortcuts:
+  - main:
+      iterate_over: "this.endpoints.fetch-shortcuts.mappedResponse.shortcuts_list"
+      mappingProperties:
+        id: "${id}"
+        name: "${name}"
+        icon: "integrations.dashwise-launcher.details.icon"
+        secondaryInfo: "${type}"
+        type: "launcherShortcut"
+        action: "post:${URL}/api/shortcuts/run?id=${id}"
+        tags:
+          - "Launcher"
+          - "${type}"
+          - "${name}"
